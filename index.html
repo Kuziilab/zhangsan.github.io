@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>To: 浅浅</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Microsoft YaHei", sans-serif;
+            background-color: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        #scene-login {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #ffe6eb 0%, #ffc0cb 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 30;
+            transition: opacity 1s ease;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 25px;
+            width: 80%;
+            max-width: 320px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(255, 105, 180, 0.3);
+            border: 3px solid #fff;
+        }
+
+        .avatar { font-size: 50px; margin-bottom: 10px; }
+        h2 { color: #ff69b4; margin-bottom: 20px; font-weight: bold; }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin-bottom: 20px;
+            border: 2px solid #ffb7c5;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 18px;
+            outline: none;
+            color: #ff69b4;
+        }
+
+        .btns { display: flex; gap: 10px; }
+        button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .btn-ok { background: #ff69b4; color: white; }
+        .btn-cancel { background: #f0f0f0; color: #888; }
+
+        #scene-bubbles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, #ffeff2, #ffd1dc);
+            display: none;
+            z-index: 20;
+            overflow: hidden;
+        }
+
+        .bubble {
+            position: absolute;
+            background: linear-gradient(45deg, #fff 0%, #fff0f5 100%);
+            color: #d6336c;
+            padding: 10px 15px;
+            border-radius: 15px;
+            border-bottom-left-radius: 2px;
+            font-size: 13px;
+            font-weight: bold;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            border: 1px solid #ffb7c5;
+            max-width: 220px;
+            opacity: 0;
+            transform: scale(0);
+            animation: popUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .bubble::after {
+            content: '🌸';
+            position: absolute;
+            right: -5px; top: -10px;
+            font-size: 14px;
+        }
+        @keyframes popUp { to { opacity: 1; transform: scale(1); } }
+
+        #scene-particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #000;
+            display: none;
+            z-index: 10;
+        }
+        canvas { display: block; }
+
+        #music-btn {
+            position: fixed;
+            top: 20px; right: 20px;
+            z-index: 100;
+            font-size: 24px;
+            opacity: 0.5;
+            display: none;
+            cursor: pointer;
+            animation: rotate 3s linear infinite;
+        }
+        @keyframes rotate { from{transform: rotate(0deg);} to{transform: rotate(360deg);} }
+    </style>
+</head>
+<body>
+
+    <audio id="bgm" loop>
+        <!-- 网易云 Love Story (Taylor’s Version) -->
+        <source src="https://music.163.com/song/media/outer/url?id=529668463.mp3" type="audio/mpeg">
+    </audio>
+    <div id="music-btn" onclick="toggleMusic()">🎵</div>
+
+    <div id="scene-login">
+        <div class="login-card">
+            <div class="avatar">🐱</div>
+            <h2>浅浅</h2>
+            <input type="password" id="passcode" placeholder="请输入个人密码">
+            <div class="btns">
+                <button class="btn-cancel" onclick="alert('没有取消选项，必须上岸！')">取消</button>
+                <button class="btn-ok" onclick="checkLogin()">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scene-bubbles"></div>
+
+    <div id="scene-particles">
+        <canvas id="pCanvas"></canvas>
+    </div>
+
+    <script>
+        const CONFIG = {
+            password: "0913",
+            bubbleDelay: 400,
+            sceneWait: 3000
+        };
+
+        const MESSAGES = [
+            // --- Part 1: 十二月 & 好运 & 勇敢自信 ---
+            "浅浅，十二月的开始，勇敢向前！🔥",
+            "新的一月，新挑战，迎接更好的自己💪",
+            "十二月好运常伴你左右🍀",
+            "保持自信，你比想象中更强大✨",
+            "寒冬会过去，春天一定如约而至🌸",
+            "每一步都算数，坚持就是胜利🏆",
+            "不惧困难，浅浅无所畏惧🚀",
+            "十二月的每一天都在积蓄力量⚡",
+            "勇气和信念是你最好的护身符🛡️",
+            "带着目标，带着坚定去迎接每个早晨🌅",
+            "用行动证明自己的实力📚",
+            "好运与努力一定会相遇💖",
+            "浅浅，你的努力正在被看见👀",
+            "所有挑战都是通向成功的阶梯🪜",
+            "心向光明，不惧阴霾☀️",
+            "十二月要更加专注与坚定🎯",
+            "拼到最后一刻，才是赢家💥",
+            "不怕路远，只怕心不够热🔥",
+            "抓住每一次机会，做最好的自己🌟",
+            "你的故事，会在这个十二月更加精彩📖",
+
+            // --- Part 2: 考研 & 中国人民大学 & 上岸 ---
+            "目标：中国人民大学！🏛️",
+            "准研究生浅浅，你好呀📜",
+            "一研为定，定为研一！✏️",
+            "关关难过关关过，前路漫漫亦灿灿🌈",
+            "熬过的每一个夜晚，都会成为光✨",
+            "明年九月，中国人民大学的校园等你走进🏫",
+            "笔尖生花，金榜题名🏆",
+            "乾坤未定，浅浅就是黑马🐎",
+            "星光不问赶路人，时光不负奋斗者🌟",
+            "合上笔盖的那一刻，要有收剑的骄傲⚔️",
+            "人大在等你，未来也在等你💼",
+            "考研必胜！岸上见！✌️",
+            "前途似海，来日方长🌊",
+            "所有努力都不会被辜负💎",
+            "最后冲刺，坚持就是胜利🏃‍♀️",
+            "浅浅，你一定能上岸！💪",
+            "站得更高，看得更远🗻",
+            "愿结果配得上你所有的辛苦与坚持🌠",
+            "成功上岸，前程似锦🎉",
+            "我们中国人民大学见！🎓"
+        ];
+
+        function checkLogin() {
+            const val = document.getElementById('passcode').value;
+            if (val === CONFIG.password) {
+                const audio = document.getElementById('bgm');
+                audio.play().catch(error => { console.log("自动播放可能被拦截"); });
+                document.getElementById('music-btn').style.display = 'block';
+                const loginLayer = document.getElementById('scene-login');
+                loginLayer.style.opacity = 0;
+                setTimeout(() => {
+                    loginLayer.style.display = 'none';
+                    startBubbles();
+                }, 800);
+            } else {
+                alert("密码不对哦~ 是生日吗？");
+                document.getElementById('passcode').value = "";
+            }
+        }
+
+        let isPlaying = true;
+        function toggleMusic() {
+            const audio = document.getElementById('bgm');
+            const btn = document.getElementById('music-btn');
+            if (isPlaying) { audio.pause(); btn.style.animation = 'none'; btn.style.opacity = '0.3'; }
+            else { audio.play(); btn.style.animation = 'rotate 3s linear infinite'; btn.style.opacity = '0.5'; }
+            isPlaying = !isPlaying;
+        }
+
+        function startBubbles() {
+            const container = document.getElementById('scene-bubbles');
+            container.style.display = 'block';
+            let count = 0;
+            const total = MESSAGES.length;
+            MESSAGES.forEach((msg, i) => {
+                setTimeout(() => {
+                    createBubble(container, msg);
+                    count++;
+                    if(count === total) { setTimeout(startParticles, CONFIG.sceneWait); }
+                }, i * CONFIG.bubbleDelay);
+            });
+        }
+
+        function createBubble(parent, text) {
+            const b = document.createElement('div');
+            b.className = 'bubble';
+            b.innerText = text;
+            const w = window.innerWidth, h = window.innerHeight;
+            const maxLeft = w - 160, maxTop = h - 80;
+            const left = Math.random() * maxLeft + 20;
+            const top = Math.random() * maxTop + 50;
+            b.style.left = left + 'px';
+            b.style.top = top + 'px';
+            b.style.zIndex = 100 + count;
+            const hue = 330 + Math.random() * 20;
+            b.style.background = `linear-gradient(135deg, hsl(${hue}, 100%, 97%) 0%, #fff 100%)`;
+            parent.appendChild(b);
+        }
+        let count = 0;
+
+        function startParticles() {
+            const bLayer = document.getElementById('scene-bubbles');
+            bLayer.style.transition = 'opacity 2s';
+            bLayer.style.opacity = 0;
+            setTimeout(() => {
+                bLayer.style.display = 'none';
+                document.getElementById('scene-particles').style.display = 'block';
+                initCanvas();
+            }, 2000);
+        }
+
+        function initCanvas() {
+            const canvas = document.getElementById('pCanvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            let particles = [];
+            const fontSize1 = Math.min(window.innerWidth / 4, 100);
+            const fontSize2 = Math.min(window.innerWidth / 10, 50);
+
+            class Particle {
+                constructor(targetX, targetY) {
+                    this.tx = targetX; this.ty = targetY;
+                    this.x = Math.random() * canvas.width;
+                    this.y = Math.random() * canvas.height;
+                    this.vx = 0; this.vy = 0;
+                    const colors = ['#ff69b4', '#ff1493', '#00bfff', '#ffd700', '#ffffff'];
+                    this.color = colors[Math.floor(Math.random() * colors.length)];
+                    this.friction = 0.93;
+                    this.ease = Math.random() * 0.05 + 0.02;
+                }
+                update() {
+                    const dx = this.tx - this.x, dy = this.ty - this.y;
+                    this.vx += dx * this.ease; this.vy += dy * this.ease;
+                    this.vx *= this.friction; this.vy *= this.friction;
+                    this.x += this.vx; this.y += this.vy;
+                }
+                draw() { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, 2, 2); }
+            }
+
+            function getTextCoordinates() {
+                const tmpC = document.createElement('canvas');
+                tmpC.width = canvas.width; tmpC.height = canvas.height;
+                const tCtx = tmpC.getContext('2d');
+                tCtx.textAlign = 'center'; tCtx.textBaseline = 'middle';
+                tCtx.fillStyle = 'white';
+                tCtx.font = `bold ${fontSize1}px "Microsoft YaHei"`;
+                tCtx.fillText('浅浅', canvas.width/2, canvas.height/2 - 40);
+                tCtx.font = `bold ${fontSize2}px Arial`;
+                tCtx.fillText('RUC 上岸成功', canvas.width/2, canvas.height/2 + 60);
+                const idata = tCtx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = idata.data; const step = 3;
+                for (let y = 0; y < canvas.height; y += step) {
+                    for (let x = 0; x < canvas.width; x += step) {
+                        const idx = (y * canvas.width + x) * 4;
+                        if (data[idx + 3] > 128) { particles.push(new Particle(x, y)); }
+                    }
+                }
+            }
+            getTextCoordinates();
+            function animate() {
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                particles.forEach(p => { p.update(); p.draw(); });
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+    </script>
+</body>
+</html>
